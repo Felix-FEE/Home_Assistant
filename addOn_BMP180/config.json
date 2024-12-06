@@ -1,0 +1,13 @@
+{
+    "name": "BMP180 Addon",
+    "version": "1.0.0",
+    "slug": "ebmp180_addon",
+    "description": "Add_on collect data from pressure sensor BMP180",
+    "arch": ["amd64", "armv7", "aarch64"],
+    "startup": "application",
+    "boot": "auto",
+    "options": {},
+    "schema": {},
+    "host_network": false
+  }
+  

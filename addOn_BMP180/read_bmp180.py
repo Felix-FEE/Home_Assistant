@@ -66,21 +66,27 @@ def read_pressure():
 
 # Đẩy dữ liệu lên Home Assistant
 def push_to_home_assistant(temperature, pressure):
-    # Địa chỉ của sensor trên Home Assistant
-    url = 'http://192.168.1.25:8123/api/states/sensor.bmp180'
+    url = 'http://192.168.1.25:8123/api/states/sensor.bmp180_temperature'
     headers = {
         'Authorization': f'Bearer {HA_TOKEN}',
         'Content-Type': 'application/json',
     }
-    
-    # Kết hợp cả nhiệt độ và áp suất vào cùng một payload
     payload = {
-        'state': temperature,  # Cập nhật nhiệt độ
+        'state': temperature,
         'attributes': {
             'unit_of_measurement': '°C',
             'friendly_name': 'BMP180 Temperature',
-            'pressure': pressure,  # Cập nhật áp suất
-            'pressure_unit_of_measurement': 'Pa',
+        }
+    }
+    response = requests.post(url, headers=headers, json=payload)
+
+    # Gửi áp suất
+    url = 'http://192.168.1.25:8123/api/states/sensor.bmp180_pressure'
+    payload = {
+        'state': pressure,
+        'attributes': {
+            'unit_of_measurement': 'Pa',
+            'friendly_name': 'BMP180 Pressure',
         }
     }
     response = requests.post(url, headers=headers, json=payload)
@@ -91,7 +97,6 @@ def push_to_home_assistant(temperature, pressure):
         print(f"Đã có lỗi: {response.status_code} - {response.text}")
 
 if __name__ == '__main__':
-    # Đọc dữ liệu từ cảm biến
     while True:
         temperature = read_temperature()
         pressure = read_pressure()
@@ -100,4 +105,5 @@ if __name__ == '__main__':
 
         # Đẩy dữ liệu lên Home Assistant
         push_to_home_assistant(temperature, pressure)
+        
         time.sleep(2)

@@ -1,2 +1,2 @@
+smbus
 requests
-smbus2

@@ -92,10 +92,12 @@ def push_to_home_assistant(temperature, pressure):
 
 if __name__ == '__main__':
     # Đọc dữ liệu từ cảm biến
-    temperature = read_temperature()
-    pressure = read_pressure()
-    print(f"Temperature: {temperature}°C")
-    print(f"Pressure: {pressure} Pa")
+    while True:
+        temperature = read_temperature()
+        pressure = read_pressure()
+        print(f"Temperature: {temperature}°C")
+        print(f"Pressure: {pressure} Pa")
 
-    # Đẩy dữ liệu lên Home Assistant
-    push_to_home_assistant(temperature, pressure)
+        # Đẩy dữ liệu lên Home Assistant
+        push_to_home_assistant(temperature, pressure)
+        time.sleep(2)

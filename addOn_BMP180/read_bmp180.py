@@ -3,7 +3,7 @@ import time
 import requests
 
 # Địa chỉ I2C của cảm biến BMP180
-BMP180_ADDRESS = 0x77
+BMP180_ADDRESS = 0x76
 
 # Các thanh ghi của cảm biến BMP180
 BMP180_REGISTER_TEMP = 0x2E
@@ -13,7 +13,7 @@ BMP180_REGISTER_RESULT = 0xF6
 BMP180_REGISTER_CALIBRATION = 0xAA
 
 # Khởi tạo bus I2C
-bus = smbus.SMBus(1)
+bus = smbus.SMBus(5)
 HA_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJmOTc3ZDExMzA2NDY0MWE3YjhmZDk4ZDJjZWJjMGUyZiIsImlhdCI6MTczMzQ2NTM5MCwiZXhwIjoyMDQ4ODI1MzkwfQ.m0Mz5P3m5wlV5xLjVBS44GubCkJm19foIRlZlcRDbCc"
 
 # Đọc các tham số hiệu chỉnh từ cảm biến

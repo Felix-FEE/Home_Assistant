@@ -6,11 +6,11 @@ RUN apt-get update && \
     apt-get install -y \
     i2c-tools \
     python3-smbus \
+    libi2c-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Sao chép mã Python và file requirements.txt vào container
-COPY read_bmp180.py /app/read_bmp180.py
-COPY requirements.txt /app/requirements.txt
+# Sao chép toàn bộ mã Python và file requirements.txt vào container
+COPY . /app
 
 # Đặt thư mục làm việc
 WORKDIR /app

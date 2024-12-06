@@ -1,86 +1,106 @@
 import smbus
 import time
 import requests
-import os
 
 # Địa chỉ I2C của cảm biến BMP180
-BMP180_ADDRESS = 0x76
+BMP180_ADDRESS = 0x77
 
 # Các thanh ghi của cảm biến BMP180
 BMP180_REGISTER_TEMP = 0x2E
 BMP180_REGISTER_PRESSURE = 0x34
 BMP180_REGISTER_CONTROL = 0xF4
 BMP180_REGISTER_RESULT = 0xF6
-
-# Home Assistant Configuration
-HA_URL = os.environ.get("HA_URL", "http://192.168.1.25:8123/api/states/sensor.bmp180_fixed")
-HA_TOKEN = os.environ.get("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJmOTc3ZDExMzA2NDY0MWE3YjhmZDk4ZDJjZWJjMGUyZiIsImlhdCI6MTczMzQ2NTM5MCwiZXhwIjoyMDQ4ODI1MzkwfQ.m0Mz5P3m5wlV5xLjVBS44GubCkJm19foIRlZlcRDbCc")  # Token lấy từ biến môi trường hoặc file cấu hình
+BMP180_REGISTER_CALIBRATION = 0xAA
 
 # Khởi tạo bus I2C
 bus = smbus.SMBus(1)
+HA_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJmOTc3ZDExMzA2NDY0MWE3YjhmZDk4ZDJjZWJjMGUyZiIsImlhdCI6MTczMzQ2NTM5MCwiZXhwIjoyMDQ4ODI1MzkwfQ.m0Mz5P3m5wlV5xLjVBS44GubCkJm19foIRlZlcRDbCc"
 
-# Đọc nhiệt độ từ cảm biến
+# Đọc các tham số hiệu chỉnh từ cảm biến
+def read_calibration():
+    calib = bus.read_i2c_block_data(BMP180_ADDRESS, BMP180_REGISTER_CALIBRATION, 22)
+    AC1 = (calib[0] << 8) + calib[1]
+    AC2 = (calib[2] << 8) + calib[3]
+    AC3 = (calib[4] << 8) + calib[5]
+    AC4 = (calib[6] << 8) + calib[7]
+    AC5 = (calib[8] << 8) + calib[9]
+    AC6 = (calib[10] << 8) + calib[11]
+    B1 = (calib[12] << 8) + calib[13]
+    B2 = (calib[14] << 8) + calib[15]
+    MB = (calib[16] << 8) + calib[17]
+    MC = (calib[18] << 8) + calib[19]
+    MD = (calib[20] << 8) + calib[21]
+    
+    return AC1, AC2, AC3, AC4, AC5, AC6, B1, B2, MB, MC, MD
+
+# Đọc nhiệt độ từ cảm biến BMP180
 def read_temperature():
     bus.write_byte_data(BMP180_ADDRESS, BMP180_REGISTER_CONTROL, BMP180_REGISTER_TEMP)
-    time.sleep(0.005)
+    time.sleep(0.005)  # Đảm bảo thời gian ổn định cho cảm biến
     temp_data = bus.read_i2c_block_data(BMP180_ADDRESS, BMP180_REGISTER_RESULT, 2)
-    temp = (temp_data[0] << 8) + temp_data[1]
-    return temp / 10.0
+    temp_raw = (temp_data[0] << 8) + temp_data[1]
+    
+    # Đọc các tham số hiệu chỉnh từ cảm biến
+    AC1, AC2, AC3, AC4, AC5, AC6, B1, B2, MB, MC, MD = read_calibration()
 
-# Đọc áp suất từ cảm biến
+    # Tính toán nhiệt độ
+    X1 = ((temp_raw - AC6) * AC5) >> 15
+    X2 = (MC << 11) / (X1 + MD)
+    B5 = X1 + X2
+
+    # Đảm bảo B5 là kiểu int trước khi sử dụng toán tử dịch bit
+    B5 = int(B5)
+
+    # Tính nhiệt độ theo công thức chuẩn của BMP180
+    temperature = (B5 + 8) >> 4  # Tính nhiệt độ theo độ C
+    return temperature / 10.0  # Đổi ra độ C
+
+# Đọc áp suất từ cảm biến BMP180
 def read_pressure():
     bus.write_byte_data(BMP180_ADDRESS, BMP180_REGISTER_CONTROL, BMP180_REGISTER_PRESSURE)
-    time.sleep(0.005)
+    time.sleep(0.005)  # Đảm bảo thời gian ổn định cho cảm biến
     press_data = bus.read_i2c_block_data(BMP180_ADDRESS, BMP180_REGISTER_RESULT, 3)
-    pressure = (press_data[0] << 16) + (press_data[1] << 8) + press_data[2]
-    return pressure / 256.0
+    pressure_raw = (press_data[0] << 16) + (press_data[1] << 8) + press_data[2]
+    pressure = pressure_raw / 256.0  # Áp suất theo Pa
+    return pressure
 
-# Gửi dữ liệu đến Home Assistant
-def send_to_home_assistant(sensor_name, value, unit, friendly_name):
-    # URL cho cảm biến cụ thể
-    url = f"{HA_URL}/sensor.{sensor_name}"
-
-    # Payload gửi đến Home Assistant
-    data = {
-        "state": value,
-        "attributes": {
-            "unit_of_measurement": unit,
-            "friendly_name": friendly_name
+# Đẩy dữ liệu lên Home Assistant
+def push_to_home_assistant(temperature, pressure):
+    url = 'http://192.168.1.25:8123/api/states/sensor.bmp180_temperature'
+    headers = {
+        'Authorization': f'Bearer {HA_TOKEN}',
+        'Content-Type': 'application/json',
+    }
+    payload = {
+        'state': temperature,
+        'attributes': {
+            'unit_of_measurement': '°C',
+            'friendly_name': 'BMP180 Temperature',
         }
     }
+    response = requests.post(url, headers=headers, json=payload)
 
-    # Header chứa token
-    headers = {
-        "Authorization": f"Bearer {HA_TOKEN}",
-        "Content-Type": "application/json"
+    # Gửi áp suất
+    url = 'http://192.168.1.25:8123/api/states/sensor.bmp180_pressure'
+    payload = {
+        'state': pressure,
+        'attributes': {
+            'unit_of_measurement': 'Pa',
+            'friendly_name': 'BMP180 Pressure',
+        }
     }
+    response = requests.post(url, headers=headers, json=payload)
 
-    # Gửi dữ liệu
-    response = requests.post(url, json=data, headers=headers)
-
-    # Kiểm tra phản hồi
     if response.status_code == 200:
-        print(f"Data for {sensor_name} sent successfully!")
+        print("Dữ liệu đã được gửi lên Home Assistant.")
     else:
-        print(f"Failed to send data for {sensor_name}: {response.status_code} - {response.text}")
+        print(f"Đã có lỗi: {response.status_code} - {response.text}")
 
-# Chương trình chính
-if __name__ == "__main__":
-    try:
-        while True:
-            # Đọc dữ liệu từ BMP180
-            temperature = read_temperature()
-            pressure = read_pressure()
+if __name__ == '__main__':
+    temperature = read_temperature()
+    pressure = read_pressure()
+    print(f"Temperature: {temperature}°C")
+    print(f"Pressure: {pressure} Pa")
 
-            print(f"Temperature: {temperature}°C")
-            print(f"Pressure: {pressure} Pa")
-
-            # Gửi dữ liệu đến Home Assistant
-            if HA_TOKEN:
-                send_to_home_assistant("bmp180_temperature", temperature, "°C", "BMP180 Temperature")
-                send_to_home_assistant("bmp180_pressure", pressure, "Pa", "BMP180 Pressure")
-            else:
-                print("HA_TOKEN not found. Data will not be sent to Home Assistant.")
-            time.sleep(2)
-    except Exception as e:
-        print(f"Error: {e}")
+    # Đẩy dữ liệu lên Home Assistant
+    push_to_home_assistant(temperature, pressure)

@@ -7,6 +7,7 @@ RUN apt-get update && \
     i2c-tools \
     python3-smbus \
     libi2c-dev \
+    build-essential \ 
     && rm -rf /var/lib/apt/lists/*
 
 # Sao chép toàn bộ mã Python và file requirements.txt vào container

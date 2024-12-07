@@ -2,6 +2,7 @@ import smbus
 import time
 import requests
 
+# Cần sửa lại
 # Địa chỉ I2C của cảm biến BMP180
 BMP180_ADDRESS = 0x76
 
